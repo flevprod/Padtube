@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PadTube — sampler à pads pour YouTube</title>
+<style>
+:root{--bg:#090a0a;--panel:#141616;--line:#262a2a;--text:#e8ecec;--mute:#8a9494;--acc:#ff5a1f;--pad:#1c1f1f;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:520px;margin:0 auto;padding:16px}
+h1{font-size:20px;letter-spacing:.12em;margin:0 0 12px}
+h1 span{color:var(--acc)}
+.row{display:flex;gap:8px;margin-bottom:10px}
+input,select,button{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px}
+input{flex:1;min-width:0}
+button{cursor:pointer}
+button.go{background:var(--acc);border-color:var(--acc);color:#111;font-weight:700}
+#vid{aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden;margin-bottom:8px;display:grid;place-items:center;color:var(--mute)}
+#vid iframe{width:100%;height:100%;border:0;pointer-events:none}
+#info{display:flex;justify-content:space-between;color:var(--mute);font-size:13px;margin-bottom:12px;font-variant-numeric:tabular-nums}
+#grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.pad{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:var(--pad);border:1px solid var(--line);border-radius:12px;touch-action:manipulation;user-select:none;-webkit-user-select:none;padding:4px}
+.pad b{font-size:18px}
+.pad small{color:var(--mute);font-size:11px;font-variant-numeric:tabular-nums}
+.pad.sel{border-color:var(--acc)}
+.pad.hit{background:var(--acc);color:#111}
+.pad.hit small{color:#111}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.panel h2{font-size:13px;color:var(--mute);margin:0 0 8px;letter-spacing:.08em;font-weight:600}
+.big{font-size:24px;font-variant-numeric:tabular-nums;margin-bottom:8px}
+.nudge{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+label{display:block;font-size:12px;color:var(--mute)}
+label select{width:100%;margin-top:4px}
+p.hint{color:var(--mute);font-size:12px;margin:12px 0 0}
+</style>
+</head>
+<body>
+<main>
+<h1>PAD<span>TUBE</span></h1>
+<div class="row"><input id="url" placeholder="Colle un lien YouTube" inputmode="url"><button class="go" id="load">Charger</button></div>
+<div id="vid">Aucune vidéo chargée</div>
+<div id="info"><span id="st">—</span><span id="tm">--:--</span></div>
+<div id="grid"></div>
+<div class="panel">
+<h2 id="ptitle">PAD 1</h2>
+<div class="big" id="ts">00:00.000</div>
+<div class="nudge">
+<button data-d="-1">−1 s</button><button data-d="-0.1">−0.1</button><button data-d="0.1">+0.1</button><button data-d="1">+1 s</button>
+</div>
+<div class="row"><button id="setnow" style="flex:1">Pad = position actuelle</button><button id="reset" style="flex:1">Répartir</button></div>
+<div class="opts">
+<label>Durée du slice<select id="slice"><option value="0">Off</option><option>0.1</option><option>0.2</option><option>0.3</option><option>0.5</option><option>1</option><option>2</option><option>4</option></select></label>
+<label>Vitesse<select id="rate"><option>0.25</option><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option></select></label>
+</div>
+</div>
+<p class="hint">Clavier : 1 2 3 4 / Q W E R / A S D F / Z X C V. MIDI : notes 36 à 51. Tactile : touche les pads.</p>
+</main>
+<script>
+var KEYS="1234qwerasdfzxcv".split(""),pads=[],sel=0,dur=0,cur=0,frame=null,poll=null,stopT=null;
+var $=function(i){return document.getElementById(i)};
+for(var i=0;i<16;i++)pads.push(0);
+var grid=$("grid");
+pads.forEach(function(_,i){
+  var b=document.createElement("div");b.className="pad";b.id="p"+i;
+  b.innerHTML="<b>"+KEYS[i].toUpperCase()+"</b><small>00:00.0</small>";
+  b.addEventListener("pointerdown",function(e){e.preventDefault();hit(i)});
+  grid.appendChild(b);
+});
+function fmt(t,ms){var m=Math.floor(t/60),s=t-m*60;return String(m).padStart(2,"0")+":"+(ms?s.toFixed(3).padStart(6,"0"):s.toFixed(1).padStart(4,"0"))}
+function draw(){
+  pads.forEach(function(t,i){var p=$("p"+i);p.querySelector("small").textContent=fmt(t,false);p.classList.toggle("sel",i===sel)});
+  $("ptitle").textContent="PAD "+(sel+1);$("ts").textContent=fmt(pads[sel],true);
+}
+function spread(){for(var i=0;i<16;i++)pads[i]=Math.round(dur*i/16*1000)/1000;draw()}
+function cmd(f,a){if(frame)frame.contentWindow.postMessage(JSON.stringify({event:"command",func:f,args:a||[]}),"*")}
+function hit(i){
+  sel=i;draw();var p=$("p"+i);p.classList.add("hit");setTimeout(function(){p.classList.remove("hit")},110);
+  if(!frame)return;
+  var r=parseFloat($("rate").value),sl=parseFloat($("slice").value);
+  cmd("setPlaybackRate",[r]);cmd("seekTo",[pads[i],true]);cmd("playVideo");
+  clearTimeout(stopT);if(sl>0)stopT=setTimeout(function(){cmd("pauseVideo")},sl*1000/r);
+}
+function getId(u){var m=u.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/);return m?m[1]:(/^[\w-]{11}$/.test(u.trim())?u.trim():null)}
+function load(){
+  var id=getId($("url").value);
+  if(!id){$("st").textContent="Lien invalide";return}
+  dur=0;$("st").textContent="Chargement…";
+  var v=$("vid");v.textContent="";
+  frame=document.createElement("iframe");
+  frame.allow="autoplay; encrypted-media";
+  frame.src="https://www.youtube.com/embed/"+id+"?enablejsapi=1&controls=0&playsinline=1&rel=0&origin="+encodeURIComponent(location.origin);
+  v.appendChild(frame);
+  clearInterval(poll);
+  frame.onload=function(){
+    poll=setInterval(function(){
+      frame.contentWindow.postMessage(JSON.stringify({event:"listening",id:1,channel:"widget"}),"*");
+      if(dur>0)clearInterval(poll);
+    },400);
+  };
+}
+window.addEventListener("message",function(e){
+  if(!/youtube\.com$/.test(new URL(e.origin).hostname))return;
+  var d;try{d=JSON.parse(e.data)}catch(x){return}
+  var inf=d.info;if(!inf)return;
+  if(inf.currentTime!==undefined){cur=inf.currentTime;$("tm").textContent=fmt(cur,false)}
+  if(inf.duration>0&&!dur){dur=inf.duration;spread();$("st").textContent="Prêt — "+fmt(dur,false)}
+});
+$("load").onclick=load;
+$("url").addEventListener("keydown",function(e){if(e.key==="Enter")load()});
+document.querySelectorAll("[data-d]").forEach(function(b){b.onclick=function(){
+  pads[sel]=Math.max(0,Math.min(dur||1e5,Math.round((pads[sel]+parseFloat(b.dataset.d))*1000)/1000));draw();hit(sel)}});
+$("setnow").onclick=function(){pads[sel]=Math.round(cur*1000)/1000;draw()};
+$("reset").onclick=function(){if(dur)spread()};
+document.addEventListener("keydown",function(e){
+  if(e.repeat||e.target.tagName==="INPUT"||e.target.tagName==="SELECT")return;
+  var i=KEYS.indexOf(e.key.toLowerCase());if(i>-1)hit(i);
+});
+try{
+  navigator.requestMIDIAccess&&navigator.requestMIDIAccess().then(function(m){
+    m.inputs.forEach(function(inp){inp.onmidimessage=function(ev){
+      var s=ev.data[0]&0xf0,n=ev.data[1]-36;
+      if(s===0x90&&ev.data[2]>0&&n>=0&&n<16)hit(n);
+    }});
+  }).catch(function(){});
+}catch(x){}
+draw();
+</script>
+</body>
+</html>
