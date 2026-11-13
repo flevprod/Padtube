@@ -30,8 +30,8 @@ p.hint{color:var(--mute);font-size:12px;margin:0 0 12px}
 .opts{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px;margin-bottom:14px;align-items:end}
 label{display:block;font-size:11px;color:var(--mute)}
 label select{width:100%;margin-top:3px;padding:10px 6px}
-#imp{display:flex;align-items:center;justify-content:center;height:44px;font-size:15px;color:var(--text);background:var(--panel);border:1px solid var(--pink);border-radius:10px;box-shadow:0 0 10px rgba(255,43,214,.4);cursor:pointer;text-align:center}
-#file{position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none}
+#imp{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;height:44px;padding:0 6px;font-size:14px;line-height:1.1;color:var(--text);background:var(--panel);border:1px solid var(--pink);border-radius:10px;box-shadow:0 0 10px rgba(255,43,214,.4);text-align:center}
+#imp input{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;border:0}
 #grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
 .pad{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:linear-gradient(160deg,#1b1b28,#0e0e16);border:2px solid #23233a;border-radius:14px;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:box-shadow .4s,background .4s,border-color .4s}
 .pad b{font-size:20px;color:#cfd3e6}
@@ -57,10 +57,9 @@ summary{font-size:13px;color:var(--mute);letter-spacing:.08em;cursor:pointer}
 <div class="lcdtop"><span id="st">—</span><button id="stop" hidden>■ STOP</button><span id="tm">--:--</span></div>
 <canvas id="wv"></canvas>
 </div>
-<p class="hint" id="tip">Colle un lien : sur ordinateur, les pads se calent tout seuls sur les pics. Sur mobile, importe un audio (MP3, WAV, M4A) pour le slice auto.</p>
-<input type="file" id="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac">
+<p class="hint" id="tip">Colle un lien : sur ordinateur, les pads se calent tout seuls sur les pics. Sur mobile, importe un audio ou une vidéo (MP3, WAV, M4A, MP4…) pour le slice auto.</p>
 <div class="opts">
-<label id="imp" for="file">Importer audio</label>
+<label id="imp">Importer audio / vidéo<input type="file" id="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.mp4,.mov,.webm"></label>
 <label>Slice<select id="slice"><option value="0">Off</option><option>0.1</option><option>0.2</option><option>0.3</option><option>0.5</option><option>1</option><option>2</option><option>4</option></select></label>
 <label>Vitesse<select id="rate"><option>0.25</option><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option></select></label>
 </div>
@@ -73,7 +72,7 @@ summary{font-size:13px;color:var(--mute);letter-spacing:.08em;cursor:pointer}
 </div>
 <div class="row" style="margin-bottom:0"><button id="setnow" style="flex:1">Pad = position actuelle</button><button id="reset" style="flex:1">Répartir</button></div>
 </details>
-<p class="hint">Clavier : 1 2 3 4 / Q W E R / A S D F / Z X C V. MIDI : notes 36 à 51. Touche la forme d’onde pour déplacer le pad sélectionné. Sur ordinateur, tu peux aussi glisser un fichier audio sur la page.</p>
+<p class="hint">Clavier : 1 2 3 4 / Q W E R / A S D F / Z X C V. MIDI : notes 36 à 51. Touche la forme d’onde pour déplacer le pad sélectionné. Sur ordinateur, tu peux aussi glisser un fichier sur la page.</p>
 </main>
 
 <script>
@@ -128,265 +127,4 @@ function hit(i){
     ctx.resume();
     var t=ctx.currentTime;
     if(src){try{sg.gain.cancelScheduledValues(t);sg.gain.setValueAtTime(sg.gain.value,t);sg.gain.linearRampToValueAtTime(0,t+0.01);src.stop(t+0.012)}catch(x){}}
-    var s=ctx.createBufferSource(),gn=ctx.createGain();
-    s.buffer=buf;s.playbackRate.value=r;s.connect(gn);gn.connect(ctx.destination);
-    gn.gain.setValueAtTime(0,t);gn.gain.linearRampToValueAtTime(1,t+0.004);
-    if(sl>0){
-      var e=t+sl/r;
-      gn.gain.setValueAtTime(1,Math.max(t+0.005,e-0.01));gn.gain.linearRampToValueAtTime(0,e);
-      s.start(t,pads[i],sl);
-    }else s.start(t,pads[i]);
-    src=s;sg=gn;ph={t0:t,off:pads[i],r:r,len:sl>0?sl:1e9};
-    return;
-  }
-  if(!frame)return;
-  if(r!==yr){cmd("setPlaybackRate",[r]);yr=r}
-  if(muted){cmd("unMute");muted=false}
-  cmd("seekTo",[pads[i],true]);
-  if(!started){cmd("playVideo");started=true}
-  clearTimeout(stopT);
-  if(sl>0)stopT=setTimeout(function(){cmd("mute");muted=true},sl*1000/r);
-}
-function getId(u){var m=u.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/);return m?m[1]:(/^[\w-]{11}$/.test(u.trim())?u.trim():null)}
-function buildFrame(id){
-  st("Chargement…");
-  var v=$("vid");v.textContent="";
-  frame=document.createElement("iframe");
-  frame.allow="autoplay; encrypted-media";
-  frame.src="https://www.youtube.com/embed/"+id+"?enablejsapi=1&controls=0&playsinline=1&rel=0&origin="+encodeURIComponent(location.origin);
-  v.appendChild(frame);
-  clearInterval(poll);
-  frame.onload=function(){
-    poll=setInterval(function(){
-      frame.contentWindow.postMessage(JSON.stringify({event:"listening",id:1,channel:"widget"}),"*");
-      if(dur>0)clearInterval(poll);
-    },400);
-  };
-}
-function load(){
-  if(rec){st("Enregistrement en cours…");return}
-  var id=getId($("url").value);
-  if(!id){st("Lien invalide");return}
-  try{src&&src.stop()}catch(x){}
-  if(pend){pend.getTracks().forEach(function(t){t.stop()});pend=null}
-  buf=null;ph=null;wave=null;binKey="";dur=0;started=false;muted=false;yr=0;frame=null;clearInterval(poll);
-  if(canCap){
-    st("Choisis cet onglet et partage le son");
-    navigator.mediaDevices.getDisplayMedia({video:true,audio:true,preferCurrentTab:true}).then(function(s){
-      if(!s.getAudioTracks().length){
-        s.getTracks().forEach(function(t){t.stop()});
-        tip("Son non partagé : pads répartis régulièrement. Recharge le lien et coche « partager le son ».");
-      }else{
-        s.getVideoTracks().forEach(function(t){t.stop()});
-        pend=s;tip("La vidéo va se lire une fois pour repérer les pics. Touche STOP pour arrêter plus tôt.");
-      }
-      buildFrame(id);
-    }).catch(function(){
-      tip("Analyse annulée : pads répartis régulièrement. Recharge le lien pour réessayer.");
-      buildFrame(id);
-    });
-  }else{
-    buildFrame(id);
-    tip("Mobile : YouTube a un petit délai. Pour des pads instantanés avec slice auto, touche « Importer audio ».");
-  }
-}
-window.addEventListener("message",function(e){
-  if(!/youtube\.com$/.test(new URL(e.origin).hostname))return;
-  var d;try{d=JSON.parse(e.data)}catch(x){return}
-  var inf=d.info;if(!inf)return;
-  if(inf.currentTime!==undefined){cur=inf.currentTime;$("tm").textContent=fmt(cur,false)}
-  if(inf.duration>0&&!dur){
-    dur=inf.duration;spread();st("Prêt — "+fmt(dur,false));
-    if(pend){var s=pend;pend=null;startRec(s)}
-  }
-});
-
-var cv=$("wv"),g=cv.getContext("2d");
-function render(){
-  var dpr=window.devicePixelRatio||1,W=Math.round(cv.clientWidth*dpr),H=Math.round(cv.clientHeight*dpr);
-  if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}
-  g.clearRect(0,0,W,H);
-  g.textAlign="left";g.fillStyle="#5dffa6";
-  if(!dur){
-    g.font=(12*dpr)+"px ui-monospace,Menlo,monospace";
-    g.fillText("LA FORME D’ONDE APPARAÎT ICI",8*dpr,H/2+4*dpr);
-    requestAnimationFrame(render);return;
-  }
-  var key=W+"|"+dur+"|"+(wave?wave.length:0);
-  if(key!==binKey){
-    binKey=key;bins=null;
-    if(wave&&wave.length){
-      bins=new Float32Array(W);var m=0,k;
-      for(k=0;k<wave.length;k++){var x=Math.floor(wave[k].t/dur*W);if(x>=0&&x<W&&wave[k].v>bins[x])bins[x]=wave[k].v}
-      for(k=0;k<W;k++)if(bins[k]>m)m=bins[k];
-      for(k=0;k<W;k++)bins[k]=bins[k]/(m||1);
-    }
-  }
-  g.fillStyle="#1b3a2a";g.fillRect(0,H/2,W,1);
-  if(bins){
-    g.fillStyle="#2fe08a";
-    for(var x2=0;x2<W;x2++){var h=Math.max(1,bins[x2]*H*0.9);g.fillRect(x2,(H-h)/2,1,h)}
-  }
-  g.font=(10*dpr)+"px ui-monospace,Menlo,monospace";
-  for(var i=0;i<16;i++){
-    var px=Math.round(pads[i]/dur*W),on=i===sel;
-    g.fillStyle=on?"#ff2bd6":"rgba(93,255,166,.5)";
-    g.fillRect(px,0,on?2*dpr:1,H);
-    g.fillText(String(i+1),px+3*dpr,H-4*dpr);
-  }
-  var p=pos();
-  if(p!==null){g.fillStyle="#fff";g.fillRect(Math.round(p/dur*W),0,Math.max(1,dpr),H)}
-  requestAnimationFrame(render);
-}
-requestAnimationFrame(render);
-cv.addEventListener("pointerdown",function(e){
-  if(!dur||rec)return;
-  var r=cv.getBoundingClientRect(),t=(e.clientX-r.left)/r.width*dur;
-  pads[sel]=Math.max(0,Math.min(dur,Math.round(t*1000)/1000));draw();hit(sel);
-});
-
-function autoSlice(fr){
-  wave=fr;binKey="";
-  var f=[],i,k;
-  for(i=0;i<fr.length;i++){
-    var sum=0,n=0;
-    for(k=1;k<=4&&i-k>=0;k++){sum+=fr[i-k].v;n++}
-    f.push({t:fr[i].t,v:n?Math.max(0,fr[i].v-sum/n):0});
-  }
-  var c=[];
-  for(i=1;i<f.length-1;i++)if(f[i].v>0&&f[i].v>f[i-1].v&&f[i].v>=f[i+1].v)c.push(f[i]);
-  var found=c.length;
-  c.sort(function(a,b){return b.v-a.v});
-  var ok=[];
-  c.forEach(function(x){
-    if(ok.length<16&&ok.every(function(y){return Math.abs(y.t-x.t)>0.15}))ok.push(x);
-  });
-  var ts=ok.map(function(x){return Math.max(0,x.t-0.01)});
-  var j=0;while(ts.length<16)ts.push(dur*(j++)/16);
-  ts.sort(function(a,b){return a-b});
-  pads=ts.map(function(t){return Math.round(t*1000)/1000});
-  sel=0;draw();
-  st(ok.length+" pics placés ("+found+" détectés)");
-}
-function framesOf(b){
-  var d=b.getChannelData(0),h=Math.floor(b.sampleRate/100),o=[];
-  for(var i=0;i+h<=d.length;i+=h){
-    var s=0;for(var k=i;k<i+h;k++)s+=d[k]*d[k];
-    o.push({t:i/b.sampleRate,v:Math.sqrt(s/h)});
-  }
-  return o;
-}
-
-$("load").onclick=load;
-$("url").addEventListener("keydown",function(e){if(e.key==="Enter")load()});
-$("url").addEventListener("paste",function(){
-  setTimeout(function(){if(getId($("url").value))load()},50);
-});
-document.querySelectorAll("[data-d]").forEach(function(b){b.onclick=function(){
-  pads[sel]=Math.max(0,Math.min(dur||1e5,Math.round((pads[sel]+parseFloat(b.dataset.d))*1000)/1000));draw();hit(sel)}});
-$("setnow").onclick=function(){var p=pos();pads[sel]=Math.round((p!==null?p:cur)*1000)/1000;draw()};
-$("reset").onclick=function(){if(dur)spread()};
-document.addEventListener("keydown",function(e){
-  if(e.repeat||e.target.tagName==="INPUT"||e.target.tagName==="SELECT")return;
-  var i=KEYS.indexOf(e.key.toLowerCase());if(i>-1)hit(i);
-});
-draw();
-</script>
-
-<script>
-/* BLOC 3 : import audio, enregistrement (PC), MIDI */
-function unlock(){
-  try{
-    ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();
-    if(ctx.state!=="running")ctx.resume();
-    var s=ctx.createBufferSource();s.buffer=ctx.createBuffer(1,1,22050);s.connect(ctx.destination);s.start(0);
-  }catch(x){}
-}
-document.addEventListener("touchend",unlock);
-document.addEventListener("click",unlock);
-
-function readFile(f){
-  return new Promise(function(res,rej){
-    var r=new FileReader();
-    r.onload=function(){res(r.result)};
-    r.onerror=function(){rej(new Error("read"))};
-    r.readAsArrayBuffer(f);
-  });
-}
-function decode(ab){
-  return new Promise(function(res,rej){
-    var p=ctx.decodeAudioData(ab,res,rej);
-    if(p&&p.catch)p.catch(rej);
-  });
-}
-function importFile(f){
-  if(!f||rec)return;
-  unlock();
-  if(pend){pend.getTracks().forEach(function(t){t.stop()});pend=null}
-  st("Lecture du fichier…");
-  readFile(f).then(function(ab){st("Décodage…");return decode(ab)}).then(function(b){
-    try{src&&src.stop()}catch(x){}
-    buf=b;frame=null;ph=null;clearInterval(poll);dur=b.duration;
-    $("vid").textContent="♪ "+f.name;
-    autoSlice(framesOf(b));
-    tip("Pads instantanés, sans latence. Joue !");
-  }).catch(function(err){
-    st(err&&err.message==="read"?"Fichier non lisible — réessaie depuis Fichiers":"Format non pris en charge — essaie MP3 ou WAV");
-  }).then(function(){$("file").value=""});
-}
-$("file").addEventListener("change",function(e){importFile(e.target.files[0])});
-document.addEventListener("dragover",function(e){e.preventDefault()});
-document.addEventListener("drop",function(e){
-  e.preventDefault();
-  var f=e.dataTransfer&&e.dataTransfer.files[0];
-  if(f)importFile(f);
-});
-
-function startRec(s){
-  unlock();
-  var msrc=ctx.createMediaStreamSource(new MediaStream(s.getAudioTracks()));
-  var sp=ctx.createScriptProcessor(4096,1,1),mg=ctx.createGain();mg.gain.value=0;
-  rec={s:s,sp:sp,msrc:msrc,ch:[],live:[],n:0,t0:performance.now()};
-  wave=rec.live;binKey="";
-  sp.onaudioprocess=function(e){
-    if(!rec)return;
-    var c=new Float32Array(e.inputBuffer.getChannelData(0)),q=0;
-    for(var i=0;i<c.length;i++)q+=c[i]*c[i];
-    rec.live.push({t:rec.n/ctx.sampleRate,v:Math.sqrt(q/c.length)});
-    rec.ch.push(c);rec.n+=c.length;
-  };
-  msrc.connect(sp);sp.connect(mg);mg.connect(ctx.destination);
-  s.getAudioTracks()[0].onended=endRec;
-  rec.iv=setInterval(function(){
-    var sec=rec.n/ctx.sampleRate,el=(performance.now()-rec.t0)/1000;
-    st("● REC "+fmt(sec,false)+" / "+fmt(dur,false));
-    if(sec>=360||(el>3&&cur>=dur-0.4))endRec();
-  },250);
-  if(muted){cmd("unMute");muted=false}
-  cmd("setPlaybackRate",[1]);yr=1;cmd("seekTo",[0,true]);cmd("playVideo");started=true;
-  $("stop").hidden=false;
-}
-function endRec(){
-  if(!rec)return;
-  var a=rec;rec=null;clearInterval(a.iv);
-  try{a.sp.disconnect();a.msrc.disconnect()}catch(x){}
-  a.s.getTracks().forEach(function(t){t.stop()});
-  cmd("pauseVideo");
-  $("stop").hidden=true;
-  var sr=ctx.sampleRate;
-  if(a.n<sr){wave=null;binKey="";st("Pas assez de son capté");return}
-  var all=new Float32Array(a.n),o=0;
-  a.ch.forEach(function(c){all.set(c,o);o+=c.length});
-  var k=0;while(k<a.n&&Math.abs(all[k])<0.004)k++;
-  k=Math.max(0,k-Math.floor(sr*0.03));
-  if(a.n-k<sr*0.5){wave=null;binKey="";st("Aucun son détecté");return}
-  var b=ctx.createBuffer(1,a.n-k,sr);b.getChannelData(0).set(all.subarray(k));
-  buf=b;frame=null;ph=null;clearInterval(poll);dur=b.duration;
-  $("vid").textContent="♪ Son capturé — pads instantanés";
-  autoSlice(framesOf(b));
-  tip("Pads instantanés, sans latence. Joue !");
-}
-$("stop").onclick=endRec;
-
-try{
-  navigator.requestMID
+    var s=ctx.createBuffer
