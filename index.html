@@ -29,7 +29,8 @@ p.hint{color:var(--mute);font-size:12px;margin:0 0 12px}
 .opts{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px;margin-bottom:14px;align-items:end}
 label{display:block;font-size:11px;color:var(--mute)}
 label select{width:100%;margin-top:3px;padding:10px 6px}
-#imp{border-color:var(--pink);box-shadow:0 0 10px rgba(255,43,214,.4)}
+#imp{display:flex;align-items:center;justify-content:center;height:44px;font-size:15px;color:var(--text);background:var(--panel);border:1px solid var(--pink);border-radius:10px;box-shadow:0 0 10px rgba(255,43,214,.4);cursor:pointer;text-align:center}
+#file{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
 #grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
 .pad{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:linear-gradient(160deg,#1b1b28,#0e0e16);border:2px solid #23233a;border-radius:14px;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:box-shadow .4s,background .4s,border-color .4s}
 .pad b{font-size:20px;color:#cfd3e6}
@@ -55,10 +56,10 @@ summary{font-size:13px;color:var(--mute);letter-spacing:.08em;cursor:pointer}
 <div class="lcdtop"><span id="st">—</span><button id="stop" hidden>■ STOP</button><span id="tm">--:--</span></div>
 <canvas id="wv"></canvas>
 </div>
-<p class="hint" id="tip">Colle un lien : sur ordinateur, les pads se calent tout seuls sur les pics. Sur mobile, importe un audio pour le slice auto.</p>
-<input type="file" id="file" accept="audio/*" hidden>
+<p class="hint" id="tip">Colle un lien : sur ordinateur, les pads se calent tout seuls sur les pics. Sur mobile, importe un audio (MP3, WAV, M4A) pour le slice auto.</p>
+<input type="file" id="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac">
 <div class="opts">
-<button id="imp">Importer audio</button>
+<label id="imp" for="file">Importer audio</label>
 <label>Slice<select id="slice"><option value="0">Off</option><option>0.1</option><option>0.2</option><option>0.3</option><option>0.5</option><option>1</option><option>2</option><option>4</option></select></label>
 <label>Vitesse<select id="rate"><option>0.25</option><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option></select></label>
 </div>
@@ -81,6 +82,15 @@ var canCap=!!(navigator.mediaDevices&&navigator.mediaDevices.getDisplayMedia);
 var $=function(i){return document.getElementById(i)};
 function st(t){$("st").textContent=t}
 function tip(t){$("tip").textContent=t}
+/* Débloque le son (obligatoire sur iPhone/Android au premier toucher) */
+function unlock(){
+  try{
+    ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();
+    if(ctx.state!=="running")ctx.resume();
+    var s=ctx.createBufferSource();s.buffer=ctx.createBuffer(1,1,22050);s.connect(ctx.destination);s.start(0);
+  }catch(x){}
+}
+["touchend","click","keydown"].forEach(function(n){document.addEventListener(n,unlock,{once:true,passive:true})});
 for(var i=0;i<16;i++)pads.push(0);
 var grid=$("grid");
 pads.forEach(function(_,i){
@@ -198,167 +208,4 @@ function render(){
   g.textAlign="left";g.fillStyle="#5dffa6";
   if(!dur){
     g.font=(12*dpr)+"px ui-monospace,Menlo,monospace";
-    g.fillText("LA FORME D’ONDE APPARAÎT ICI",8*dpr,H/2+4*dpr);
-    requestAnimationFrame(render);return;
-  }
-  var key=W+"|"+dur+"|"+(wave?wave.length:0);
-  if(key!==binKey){
-    binKey=key;bins=null;
-    if(wave&&wave.length){
-      bins=new Float32Array(W);var m=0,k;
-      for(k=0;k<wave.length;k++){var x=Math.floor(wave[k].t/dur*W);if(x>=0&&x<W&&wave[k].v>bins[x])bins[x]=wave[k].v}
-      for(k=0;k<W;k++)if(bins[k]>m)m=bins[k];
-      for(k=0;k<W;k++)bins[k]=bins[k]/(m||1);
-    }
-  }
-  g.fillStyle="#1b3a2a";g.fillRect(0,H/2,W,1);
-  if(bins){
-    g.fillStyle="#2fe08a";
-    for(var x2=0;x2<W;x2++){var h=Math.max(1,bins[x2]*H*0.9);g.fillRect(x2,(H-h)/2,1,h)}
-  }
-  g.font=(10*dpr)+"px ui-monospace,Menlo,monospace";
-  for(var i=0;i<16;i++){
-    var px=Math.round(pads[i]/dur*W),on=i===sel;
-    g.fillStyle=on?"#ff2bd6":"rgba(93,255,166,.5)";
-    g.fillRect(px,0,on?2*dpr:1,H);
-    g.fillText(String(i+1),px+3*dpr,H-4*dpr);
-  }
-  var p=pos();
-  if(p!==null){g.fillStyle="#fff";g.fillRect(Math.round(p/dur*W),0,Math.max(1,dpr),H)}
-  requestAnimationFrame(render);
-}
-requestAnimationFrame(render);
-cv.addEventListener("pointerdown",function(e){
-  if(!dur||rec)return;
-  var r=cv.getBoundingClientRect(),t=(e.clientX-r.left)/r.width*dur;
-  pads[sel]=Math.max(0,Math.min(dur,Math.round(t*1000)/1000));draw();hit(sel);
-});
-
-/* ---------- Détection des pics ---------- */
-function autoSlice(fr){
-  wave=fr;binKey="";
-  var f=[],i,k;
-  for(i=0;i<fr.length;i++){
-    var sum=0,n=0;
-    for(k=1;k<=4&&i-k>=0;k++){sum+=fr[i-k].v;n++}
-    f.push({t:fr[i].t,v:n?Math.max(0,fr[i].v-sum/n):0});
-  }
-  var c=[];
-  for(i=1;i<f.length-1;i++)if(f[i].v>0&&f[i].v>f[i-1].v&&f[i].v>=f[i+1].v)c.push(f[i]);
-  var found=c.length;
-  c.sort(function(a,b){return b.v-a.v});
-  var ok=[];
-  c.forEach(function(x){
-    if(ok.length<16&&ok.every(function(y){return Math.abs(y.t-x.t)>0.15}))ok.push(x);
-  });
-  var ts=ok.map(function(x){return Math.max(0,x.t-0.01)});
-  var j=0;while(ts.length<16)ts.push(dur*(j++)/16);
-  ts.sort(function(a,b){return a-b});
-  pads=ts.map(function(t){return Math.round(t*1000)/1000});
-  sel=0;draw();
-  st(ok.length+" pics placés ("+found+" détectés)");
-}
-function framesOf(b){
-  var d=b.getChannelData(0),h=Math.floor(b.sampleRate/100),o=[];
-  for(var i=0;i+h<=d.length;i+=h){
-    var s=0;for(var k=i;k<i+h;k++)s+=d[k]*d[k];
-    o.push({t:i/b.sampleRate,v:Math.sqrt(s/h)});
-  }
-  return o;
-}
-
-/* ---------- Import d'un fichier audio (partout) ---------- */
-function importFile(f){
-  if(!f||rec)return;
-  ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();ctx.resume();
-  if(pend){pend.getTracks().forEach(function(t){t.stop()});pend=null}
-  st("Analyse du fichier…");
-  f.arrayBuffer().then(function(ab){return ctx.decodeAudioData(ab)}).then(function(b){
-    buf=b;frame=null;ph=null;clearInterval(poll);dur=b.duration;
-    $("vid").textContent="♪ "+f.name;
-    autoSlice(framesOf(b));
-    tip("Pads instantanés, sans latence. Joue !");
-  }).catch(function(){st("Fichier illisible")});
-}
-$("imp").onclick=function(){if(!rec)$("file").click()};
-$("file").onchange=function(e){importFile(e.target.files[0]);e.target.value=""};
-document.addEventListener("dragover",function(e){e.preventDefault()});
-document.addEventListener("drop",function(e){
-  e.preventDefault();
-  var f=e.dataTransfer&&e.dataTransfer.files[0];
-  if(f)importFile(f);
-});
-
-/* ---------- Enregistrement du son de l'onglet (ordinateur) ---------- */
-function startRec(s){
-  ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();ctx.resume();
-  var msrc=ctx.createMediaStreamSource(new MediaStream(s.getAudioTracks()));
-  var sp=ctx.createScriptProcessor(4096,1,1),mg=ctx.createGain();mg.gain.value=0;
-  rec={s:s,sp:sp,msrc:msrc,ch:[],live:[],n:0,t0:performance.now()};
-  wave=rec.live;binKey="";
-  sp.onaudioprocess=function(e){
-    if(!rec)return;
-    var c=new Float32Array(e.inputBuffer.getChannelData(0)),q=0;
-    for(var i=0;i<c.length;i++)q+=c[i]*c[i];
-    rec.live.push({t:rec.n/ctx.sampleRate,v:Math.sqrt(q/c.length)});
-    rec.ch.push(c);rec.n+=c.length;
-  };
-  msrc.connect(sp);sp.connect(mg);mg.connect(ctx.destination);
-  s.getAudioTracks()[0].onended=endRec;
-  rec.iv=setInterval(function(){
-    var sec=rec.n/ctx.sampleRate,el=(performance.now()-rec.t0)/1000;
-    st("● REC "+fmt(sec,false)+" / "+fmt(dur,false));
-    if(sec>=360||(el>3&&cur>=dur-0.4))endRec();
-  },250);
-  if(muted){cmd("unMute");muted=false}
-  cmd("setPlaybackRate",[1]);yr=1;cmd("seekTo",[0,true]);cmd("playVideo");started=true;
-  $("stop").hidden=false;
-}
-function endRec(){
-  if(!rec)return;
-  var a=rec;rec=null;clearInterval(a.iv);
-  try{a.sp.disconnect();a.msrc.disconnect()}catch(x){}
-  a.s.getTracks().forEach(function(t){t.stop()});
-  cmd("pauseVideo");
-  $("stop").hidden=true;
-  var sr=ctx.sampleRate;
-  if(a.n<sr){wave=null;binKey="";st("Pas assez de son capté");return}
-  var all=new Float32Array(a.n),o=0;
-  a.ch.forEach(function(c){all.set(c,o);o+=c.length});
-  var k=0;while(k<a.n&&Math.abs(all[k])<0.004)k++;
-  k=Math.max(0,k-Math.floor(sr*0.03));
-  if(a.n-k<sr*0.5){wave=null;binKey="";st("Aucun son détecté");return}
-  var b=ctx.createBuffer(1,a.n-k,sr);b.getChannelData(0).set(all.subarray(k));
-  buf=b;frame=null;ph=null;clearInterval(poll);dur=b.duration;
-  $("vid").textContent="♪ Son capturé — pads instantanés";
-  autoSlice(framesOf(b));
-  tip("Pads instantanés, sans latence. Joue !");
-}
-$("stop").onclick=endRec;
-
-/* ---------- Contrôles ---------- */
-$("load").onclick=load;
-$("url").addEventListener("keydown",function(e){if(e.key==="Enter")load()});
-$("url").addEventListener("paste",function(){
-  setTimeout(function(){if(getId($("url").value))load()},50);
-});
-document.querySelectorAll("[data-d]").forEach(function(b){b.onclick=function(){
-  pads[sel]=Math.max(0,Math.min(dur||1e5,Math.round((pads[sel]+parseFloat(b.dataset.d))*1000)/1000));draw();hit(sel)}});
-$("setnow").onclick=function(){var p=pos();pads[sel]=Math.round((p!==null?p:cur)*1000)/1000;draw()};
-$("reset").onclick=function(){if(dur)spread()};
-document.addEventListener("keydown",function(e){
-  if(e.repeat||e.target.tagName==="INPUT"||e.target.tagName==="SELECT")return;
-  var i=KEYS.indexOf(e.key.toLowerCase());if(i>-1)hit(i);
-});
-try{
-  navigator.requestMIDIAccess&&navigator.requestMIDIAccess().then(function(m){
-    m.inputs.forEach(function(inp){inp.onmidimessage=function(ev){
-      var s=ev.data[0]&0xf0,n=ev.data[1]-36;
-      if(s===0x90&&ev.data[2]>0&&n>=0&&n<16)hit(n);
-    }});
-  }).catch(function(){});
-}catch(x){}
-draw();
-</script>
-</body>
-</html>
+    g.fillText("LA FORME D’ONDE APPARAÎT ICI",8*dpr
