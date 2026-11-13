@@ -19,16 +19,17 @@ button{cursor:pointer}
 button.go{background:#00e5ff;border-color:#00e5ff;color:#001418;font-weight:800;box-shadow:0 0 14px rgba(0,229,255,.5)}
 #vid{aspect-ratio:16/9;background:#000;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:10px;display:grid;place-items:center;color:var(--mute);text-align:center;padding:8px}
 #vid iframe{width:100%;height:100%;border:0;pointer-events:none}
-.lcd{background:#06130d;border:1px solid #1b3a2a;border-radius:12px;padding:8px;box-shadow:inset 0 0 20px rgba(0,0,0,.6)}
-.lcdtop{display:flex;justify-content:space-between;gap:8px;font:12px ui-monospace,"SF Mono",Menlo,monospace;color:#5dffa6;text-shadow:0 0 6px rgba(93,255,166,.7);margin-bottom:6px;font-variant-numeric:tabular-nums}
-#wv{display:block;width:100%;height:92px;touch-action:none;cursor:crosshair}
-.auto{width:100%;padding:14px;margin:10px 0 6px;font-size:17px;font-weight:800;letter-spacing:.14em;color:#fff;background:#14061a;border:2px solid var(--pink);border-radius:14px;text-shadow:0 0 8px var(--pink);box-shadow:0 0 14px rgba(255,43,214,.55),inset 0 0 14px rgba(255,43,214,.25)}
-.auto.rec{border-color:#ff3b3b;text-shadow:0 0 8px #ff3b3b;box-shadow:0 0 16px rgba(255,59,59,.7),inset 0 0 14px rgba(255,59,59,.3);animation:pulse 1s infinite}
+.lcd{background:#06130d;border:1px solid #1b3a2a;border-radius:12px;padding:8px;box-shadow:inset 0 0 20px rgba(0,0,0,.6);margin-bottom:8px}
+.lcdtop{display:flex;justify-content:space-between;align-items:center;gap:8px;font:12px ui-monospace,"SF Mono",Menlo,monospace;color:#5dffa6;text-shadow:0 0 6px rgba(93,255,166,.7);margin-bottom:6px;font-variant-numeric:tabular-nums}
+#stop{padding:3px 10px;font-size:12px;color:#fff;background:#3a0a0a;border:1px solid #ff3b3b;box-shadow:0 0 10px rgba(255,59,59,.6);animation:pulse 1s infinite}
+#stop[hidden]{display:none}
 @keyframes pulse{50%{opacity:.55}}
+#wv{display:block;width:100%;height:92px;touch-action:none;cursor:crosshair}
 p.hint{color:var(--mute);font-size:12px;margin:0 0 12px}
 .opts{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px;margin-bottom:14px;align-items:end}
 label{display:block;font-size:11px;color:var(--mute)}
 label select{width:100%;margin-top:3px;padding:10px 6px}
+#imp{border-color:var(--pink);box-shadow:0 0 10px rgba(255,43,214,.4)}
 #grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
 .pad{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:linear-gradient(160deg,#1b1b28,#0e0e16);border:2px solid #23233a;border-radius:14px;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:box-shadow .4s,background .4s,border-color .4s}
 .pad b{font-size:20px;color:#cfd3e6}
@@ -51,11 +52,10 @@ summary{font-size:13px;color:var(--mute);letter-spacing:.08em;cursor:pointer}
 <div class="row"><input id="url" placeholder="Colle un lien YouTube" inputmode="url"><button class="go" id="load">Charger</button></div>
 <div id="vid">Aucune vidéo chargée</div>
 <div class="lcd">
-<div class="lcdtop"><span id="st">—</span><span id="tm">--:--</span></div>
+<div class="lcdtop"><span id="st">—</span><button id="stop" hidden>■ STOP</button><span id="tm">--:--</span></div>
 <canvas id="wv"></canvas>
 </div>
-<button class="auto" id="auto">⚡ SLICE AUTO</button>
-<p class="hint">Ordinateur : enregistre le son de la vidéo une fois, puis les pads sont instantanés. Mobile : importe un fichier audio.</p>
+<p class="hint" id="tip">Colle un lien : sur ordinateur, les pads se calent tout seuls sur les pics. Sur mobile, importe un audio pour le slice auto.</p>
 <input type="file" id="file" accept="audio/*" hidden>
 <div class="opts">
 <button id="imp">Importer audio</button>
@@ -71,15 +71,16 @@ summary{font-size:13px;color:var(--mute);letter-spacing:.08em;cursor:pointer}
 </div>
 <div class="row" style="margin-bottom:0"><button id="setnow" style="flex:1">Pad = position actuelle</button><button id="reset" style="flex:1">Répartir</button></div>
 </details>
-<p class="hint">Clavier : 1 2 3 4 / Q W E R / A S D F / Z X C V. MIDI : notes 36 à 51. Touche la forme d’onde pour déplacer le pad sélectionné.</p>
+<p class="hint">Clavier : 1 2 3 4 / Q W E R / A S D F / Z X C V. MIDI : notes 36 à 51. Touche la forme d’onde pour déplacer le pad sélectionné. Sur ordinateur, tu peux aussi glisser un fichier audio sur la page.</p>
 </main>
 <script>
 var KEYS="1234qwerasdfzxcv".split(""),COL=["#00e5ff","#ff2bd6","#b6ff00","#ff8a00"],
-pads=[],sel=0,dur=0,cur=0,frame=null,poll=null,stopT=null,ctx=null,buf=null,src=null,sg=null,rec=null,
+pads=[],sel=0,dur=0,cur=0,frame=null,poll=null,stopT=null,ctx=null,buf=null,src=null,sg=null,rec=null,pend=null,
 wave=null,ph=null,bins=null,binKey="",started=false,muted=false,yr=0;
 var canCap=!!(navigator.mediaDevices&&navigator.mediaDevices.getDisplayMedia);
 var $=function(i){return document.getElementById(i)};
 function st(t){$("st").textContent=t}
+function tip(t){$("tip").textContent=t}
 for(var i=0;i<16;i++)pads.push(0);
 var grid=$("grid");
 pads.forEach(function(_,i){
@@ -133,12 +134,9 @@ function hit(i){
   if(sl>0)stopT=setTimeout(function(){cmd("mute");muted=true},sl*1000/r);
 }
 function getId(u){var m=u.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/);return m?m[1]:(/^[\w-]{11}$/.test(u.trim())?u.trim():null)}
-function load(){
-  if(rec){st("Termine d’abord l’enregistrement");return}
-  var id=getId($("url").value);
-  if(!id){st("Lien invalide");return}
-  try{src&&src.stop()}catch(x){}
-  buf=null;ph=null;wave=null;binKey="";dur=0;started=false;muted=false;yr=0;
+
+/* ---------- Chargement d'un lien YouTube ---------- */
+function buildFrame(id){
   st("Chargement…");
   var v=$("vid");v.textContent="";
   frame=document.createElement("iframe");
@@ -153,12 +151,42 @@ function load(){
     },400);
   };
 }
+function load(){
+  if(rec){st("Enregistrement en cours…");return}
+  var id=getId($("url").value);
+  if(!id){st("Lien invalide");return}
+  try{src&&src.stop()}catch(x){}
+  if(pend){pend.getTracks().forEach(function(t){t.stop()});pend=null}
+  buf=null;ph=null;wave=null;binKey="";dur=0;started=false;muted=false;yr=0;frame=null;clearInterval(poll);
+  if(canCap){
+    st("Choisis cet onglet et partage le son");
+    navigator.mediaDevices.getDisplayMedia({video:true,audio:true,preferCurrentTab:true}).then(function(s){
+      if(!s.getAudioTracks().length){
+        s.getTracks().forEach(function(t){t.stop()});
+        tip("Son non partagé : pads répartis régulièrement. Recharge le lien et coche « partager le son ».");
+      }else{
+        s.getVideoTracks().forEach(function(t){t.stop()});
+        pend=s;tip("La vidéo va se lire une fois pour repérer les pics. Touche STOP pour arrêter plus tôt.");
+      }
+      buildFrame(id);
+    }).catch(function(){
+      tip("Analyse annulée : pads répartis régulièrement. Recharge le lien pour réessayer.");
+      buildFrame(id);
+    });
+  }else{
+    buildFrame(id);
+    tip("Mobile : YouTube a un petit délai. Pour des pads instantanés avec slice auto, touche « Importer audio ».");
+  }
+}
 window.addEventListener("message",function(e){
   if(!/youtube\.com$/.test(new URL(e.origin).hostname))return;
   var d;try{d=JSON.parse(e.data)}catch(x){return}
   var inf=d.info;if(!inf)return;
   if(inf.currentTime!==undefined){cur=inf.currentTime;$("tm").textContent=fmt(cur,false)}
-  if(inf.duration>0&&!dur){dur=inf.duration;spread();st("Prêt — "+fmt(dur,false))}
+  if(inf.duration>0&&!dur){
+    dur=inf.duration;spread();st("Prêt — "+fmt(dur,false));
+    if(pend){var s=pend;pend=null;startRec(s)}
+  }
 });
 
 /* ---------- Forme d'onde (écran LCD) ---------- */
@@ -187,9 +215,6 @@ function render(){
   if(bins){
     g.fillStyle="#2fe08a";
     for(var x2=0;x2<W;x2++){var h=Math.max(1,bins[x2]*H*0.9);g.fillRect(x2,(H-h)/2,1,h)}
-  }else{
-    g.font=(11*dpr)+"px ui-monospace,Menlo,monospace";
-    g.fillText("APPUIE SUR SLICE AUTO POUR VOIR L’ONDE",8*dpr,14*dpr);
   }
   g.font=(10*dpr)+"px ui-monospace,Menlo,monospace";
   for(var i=0;i<16;i++){
@@ -242,48 +267,52 @@ function framesOf(b){
   return o;
 }
 
-/* ---------- Import d'un fichier audio ---------- */
-$("imp").onclick=function(){if(rec)return;$("file").click()};
-$("file").onchange=function(e){
-  var f=e.target.files[0];if(!f)return;
+/* ---------- Import d'un fichier audio (partout) ---------- */
+function importFile(f){
+  if(!f||rec)return;
   ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();ctx.resume();
+  if(pend){pend.getTracks().forEach(function(t){t.stop()});pend=null}
   st("Analyse du fichier…");
   f.arrayBuffer().then(function(ab){return ctx.decodeAudioData(ab)}).then(function(b){
     buf=b;frame=null;ph=null;clearInterval(poll);dur=b.duration;
     $("vid").textContent="♪ "+f.name;
     autoSlice(framesOf(b));
+    tip("Pads instantanés, sans latence. Joue !");
   }).catch(function(){st("Fichier illisible")});
-  e.target.value="";
-};
+}
+$("imp").onclick=function(){if(!rec)$("file").click()};
+$("file").onchange=function(e){importFile(e.target.files[0]);e.target.value=""};
+document.addEventListener("dragover",function(e){e.preventDefault()});
+document.addEventListener("drop",function(e){
+  e.preventDefault();
+  var f=e.dataTransfer&&e.dataTransfer.files[0];
+  if(f)importFile(f);
+});
 
 /* ---------- Enregistrement du son de l'onglet (ordinateur) ---------- */
-function startRec(){
-  navigator.mediaDevices.getDisplayMedia({video:true,audio:true,preferCurrentTab:true}).then(function(s){
-    if(!s.getAudioTracks().length){s.getTracks().forEach(function(t){t.stop()});st("Coche « partager le son de l’onglet »");return}
-    s.getVideoTracks().forEach(function(t){t.stop()});
-    ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();ctx.resume();
-    var msrc=ctx.createMediaStreamSource(new MediaStream(s.getAudioTracks()));
-    var sp=ctx.createScriptProcessor(4096,1,1),mg=ctx.createGain();mg.gain.value=0;
-    rec={s:s,sp:sp,msrc:msrc,ch:[],live:[],n:0,t0:performance.now()};
-    wave=rec.live;binKey="";
-    sp.onaudioprocess=function(e){
-      if(!rec)return;
-      var c=new Float32Array(e.inputBuffer.getChannelData(0)),q=0;
-      for(var i=0;i<c.length;i++)q+=c[i]*c[i];
-      rec.live.push({t:rec.n/ctx.sampleRate,v:Math.sqrt(q/c.length)});
-      rec.ch.push(c);rec.n+=c.length;
-    };
-    msrc.connect(sp);sp.connect(mg);mg.connect(ctx.destination);
-    s.getAudioTracks()[0].onended=endRec;
-    rec.iv=setInterval(function(){
-      var sec=rec.n/ctx.sampleRate,el=(performance.now()-rec.t0)/1000;
-      st("● REC "+fmt(sec,false)+" / "+fmt(dur,false));
-      if(sec>=360||(el>3&&cur>=dur-0.4))endRec();
-    },250);
-    if(muted){cmd("unMute");muted=false}
-    cmd("setPlaybackRate",[1]);yr=1;cmd("seekTo",[0,true]);cmd("playVideo");started=true;
-    $("auto").textContent="■ STOP";$("auto").classList.add("rec");
-  }).catch(function(){st("Capture annulée")});
+function startRec(s){
+  ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();ctx.resume();
+  var msrc=ctx.createMediaStreamSource(new MediaStream(s.getAudioTracks()));
+  var sp=ctx.createScriptProcessor(4096,1,1),mg=ctx.createGain();mg.gain.value=0;
+  rec={s:s,sp:sp,msrc:msrc,ch:[],live:[],n:0,t0:performance.now()};
+  wave=rec.live;binKey="";
+  sp.onaudioprocess=function(e){
+    if(!rec)return;
+    var c=new Float32Array(e.inputBuffer.getChannelData(0)),q=0;
+    for(var i=0;i<c.length;i++)q+=c[i]*c[i];
+    rec.live.push({t:rec.n/ctx.sampleRate,v:Math.sqrt(q/c.length)});
+    rec.ch.push(c);rec.n+=c.length;
+  };
+  msrc.connect(sp);sp.connect(mg);mg.connect(ctx.destination);
+  s.getAudioTracks()[0].onended=endRec;
+  rec.iv=setInterval(function(){
+    var sec=rec.n/ctx.sampleRate,el=(performance.now()-rec.t0)/1000;
+    st("● REC "+fmt(sec,false)+" / "+fmt(dur,false));
+    if(sec>=360||(el>3&&cur>=dur-0.4))endRec();
+  },250);
+  if(muted){cmd("unMute");muted=false}
+  cmd("setPlaybackRate",[1]);yr=1;cmd("seekTo",[0,true]);cmd("playVideo");started=true;
+  $("stop").hidden=false;
 }
 function endRec(){
   if(!rec)return;
@@ -291,7 +320,7 @@ function endRec(){
   try{a.sp.disconnect();a.msrc.disconnect()}catch(x){}
   a.s.getTracks().forEach(function(t){t.stop()});
   cmd("pauseVideo");
-  $("auto").classList.remove("rec");$("auto").textContent="⚡ SLICE AUTO";
+  $("stop").hidden=true;
   var sr=ctx.sampleRate;
   if(a.n<sr){wave=null;binKey="";st("Pas assez de son capté");return}
   var all=new Float32Array(a.n),o=0;
@@ -303,22 +332,16 @@ function endRec(){
   buf=b;frame=null;ph=null;clearInterval(poll);dur=b.duration;
   $("vid").textContent="♪ Son capturé — pads instantanés";
   autoSlice(framesOf(b));
+  tip("Pads instantanés, sans latence. Joue !");
 }
-
-/* ---------- Bouton SLICE AUTO ---------- */
-$("auto").onclick=function(){
-  if(rec){endRec();return}
-  if(buf){autoSlice(framesOf(buf));return}
-  if(frame&&dur){
-    if(canCap){startRec();return}
-    st("Sur mobile : importe un audio");$("file").click();return;
-  }
-  st("Charge une vidéo ou importe un audio");
-};
+$("stop").onclick=endRec;
 
 /* ---------- Contrôles ---------- */
 $("load").onclick=load;
 $("url").addEventListener("keydown",function(e){if(e.key==="Enter")load()});
+$("url").addEventListener("paste",function(){
+  setTimeout(function(){if(getId($("url").value))load()},50);
+});
 document.querySelectorAll("[data-d]").forEach(function(b){b.onclick=function(){
   pads[sel]=Math.max(0,Math.min(dur||1e5,Math.round((pads[sel]+parseFloat(b.dataset.d))*1000)/1000));draw();hit(sel)}});
 $("setnow").onclick=function(){var p=pos();pads[sel]=Math.round((p!==null?p:cur)*1000)/1000;draw()};
