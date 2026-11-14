@@ -10,7 +10,9 @@
 html,body{max-width:100%;overflow-x:hidden}
 body{margin:0;background:radial-gradient(900px 500px at 50% -10%,#1a1030 0%,#06060b 60%);background-color:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
 main{max-width:520px;margin:0 auto;padding:16px}
-header{margin-bottom:12px}
+header{margin-bottom:14px}
+.by{margin-top:4px;font:italic 13px Georgia,"Times New Roman",serif;letter-spacing:.16em;color:var(--mute)}
+.by b{font-style:normal;font-weight:600;letter-spacing:.22em;color:#cfd3e6}
 h1{font-size:24px;letter-spacing:.16em;margin:0;font-weight:900}
 h1 span{color:var(--blue);text-shadow:0 0 10px var(--blue),0 0 26px var(--blue)}
 .row{display:flex;gap:8px;margin-bottom:10px}
@@ -56,7 +58,7 @@ summary{font-size:13px;color:var(--mute);letter-spacing:.08em;cursor:pointer}
 </head>
 <body>
 <main>
-<header><h1>PAD<span>TUBE</span></h1></header>
+<header><h1>PAD<span>TUBE</span></h1><div class="by">Created by <b>Flevprod</b></div></header>
 <div id="boot">⚠ Le code est incomplet ou n’a pas démarré : recopie le fichier en entier (il doit finir par &lt;/html&gt;).</div>
 <div class="row"><input id="url" placeholder="Colle un lien YouTube" inputmode="url"><button class="go" id="load">Charger</button></div>
 <div id="vid">Aucune vidéo chargée</div>
