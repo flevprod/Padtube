@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>PadTube — sampler à pads néon pour YouTube</title>
 <style>
-:root{--bg:#06060b;--panel:#101019;--line:#23233a;--text:#e6e8f5;--mute:#6f7596;--pink:#ff2bd6;color-scheme:dark}
+:root{--bg:#06060b;--panel:#101019;--line:#23233a;--text:#e6e8f5;--mute:#6f7596;--blue:#3d8bff;color-scheme:dark}
 *{box-sizing:border-box}
 html,body{max-width:100%;overflow-x:hidden}
 body{margin:0;background:radial-gradient(900px 500px at 50% -10%,#1a1030 0%,#06060b 60%);background-color:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
 main{max-width:520px;margin:0 auto;padding:16px}
 header{margin-bottom:12px}
 h1{font-size:24px;letter-spacing:.16em;margin:0;font-weight:900}
-h1 span{color:var(--pink);text-shadow:0 0 10px var(--pink),0 0 26px var(--pink)}
+h1 span{color:var(--blue);text-shadow:0 0 10px var(--blue),0 0 26px var(--blue)}
 .row{display:flex;gap:8px;margin-bottom:10px}
 input,select,button{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
 input{flex:1;min-width:0}
@@ -28,10 +28,15 @@ button.go{background:#00e5ff;border-color:#00e5ff;color:#001418;font-weight:800;
 @keyframes pulse{50%{opacity:.55}}
 #wv{display:block;width:100%;height:92px;touch-action:none;cursor:crosshair}
 p.hint{color:var(--mute);font-size:12px;margin:0 0 12px}
-.opts{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px;margin-bottom:14px;align-items:end}
+.opts{display:grid;grid-template-columns:1.2fr 1fr 74px;gap:8px;margin-bottom:14px;align-items:center}
+.kw{display:flex;flex-direction:column;align-items:center;gap:4px}
+#knob{position:relative;width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2c2c40,#0b0b13);border:2px solid #23233a;box-shadow:0 0 12px rgba(61,139,255,.35),inset 0 2px 4px rgba(255,255,255,.08);touch-action:none;cursor:ns-resize;outline:none}
+#knob:focus-visible{border-color:var(--blue)}
+#knob i{position:absolute;left:50%;top:4px;width:3px;height:15px;margin-left:-1.5px;background:var(--blue);border-radius:2px;box-shadow:0 0 8px var(--blue);transform-origin:50% 22px}
+#kv{font:10px ui-monospace,Menlo,monospace;color:var(--mute);white-space:nowrap}
 label{display:block;font-size:11px;color:var(--mute)}
 label select{width:100%;margin-top:3px;padding:10px 6px}
-#imp{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;height:44px;padding:0 6px;font-size:14px;line-height:1.1;color:var(--text);background:var(--panel);border:1px solid var(--pink);border-radius:10px;box-shadow:0 0 10px rgba(255,43,214,.4);text-align:center}
+#imp{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;height:44px;padding:0 6px;font-size:14px;line-height:1.1;color:var(--text);background:var(--panel);border:1px solid var(--blue);border-radius:10px;box-shadow:0 0 10px rgba(61,139,255,.55);text-align:center}
 #imp input{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;border:0}
 #grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
 .pad{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:linear-gradient(160deg,#1b1b28,#0e0e16);border:2px solid #23233a;border-radius:14px;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:box-shadow .4s,background .4s,border-color .4s}
@@ -63,7 +68,7 @@ summary{font-size:13px;color:var(--mute);letter-spacing:.08em;cursor:pointer}
 <div class="opts">
 <label id="imp">Importer audio / vidéo<input type="file" id="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.mp4,.mov,.webm"></label>
 <label>Slice<select id="slice"><option value="0">Off</option><option>0.1</option><option>0.2</option><option>0.3</option><option>0.5</option><option>1</option><option>2</option><option>4</option></select></label>
-<label>Vitesse<select id="rate"><option>0.25</option><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option></select></label>
+<div class="kw"><div id="knob" tabindex="0" role="slider" aria-label="Tune" aria-valuemin="-12" aria-valuemax="12" aria-valuenow="0"><i></i></div><div id="kv">TUNE 0</div></div>
 </div>
 <div id="grid"></div>
 <details open>
@@ -74,7 +79,7 @@ summary{font-size:13px;color:var(--mute);letter-spacing:.08em;cursor:pointer}
 </div>
 <div class="row" style="margin-bottom:0"><button id="setnow" style="flex:1">Pad = position actuelle</button><button id="reset" style="flex:1">Répartir</button></div>
 </details>
-<p class="hint">Clavier : 1 2 3 4 / Q W E R / A S D F / Z X C V. MIDI : notes 36 à 51. Touche la forme d’onde pour déplacer le pad sélectionné. Sur ordinateur, tu peux aussi glisser un fichier sur la page.</p>
+<p class="hint">Clavier : 1 2 3 4 / Q W E R / A S D F / Z X C V. MIDI : notes 36 à 51. Touche la forme d’onde pour déplacer le pad sélectionné. Molette TUNE : glisse vers le haut ou le bas (±12 demi-tons), double-touche pour revenir à 0. La hauteur change sur un son importé ou capturé ; sur YouTube, seule la vitesse change. Sur ordinateur, tu peux aussi glisser un fichier sur la page.</p>
 </main>
 
 <script>
@@ -124,7 +129,7 @@ function hit(i){
   sel=i;draw();
   var p=$("p"+i);p.classList.add("hit");setTimeout(function(){p.classList.remove("hit")},130);
   if(rec)return;
-  var r=parseFloat($("rate").value),sl=parseFloat($("slice").value);
+  var r=rate(),sl=parseFloat($("slice").value);
   if(buf){
     ctx.resume();
     var t=ctx.currentTime;
@@ -141,12 +146,12 @@ function hit(i){
     return;
   }
   if(!frame)return;
-  if(r!==yr){cmd("setPlaybackRate",[r]);yr=r}
+  var yrr=ytRate(r);if(yrr!==yr){cmd("setPlaybackRate",[yrr]);yr=yrr}
   if(muted){cmd("unMute");muted=false}
   cmd("seekTo",[pads[i],true]);
   if(!started){cmd("playVideo");started=true}
   clearTimeout(stopT);
-  if(sl>0)stopT=setTimeout(function(){cmd("mute");muted=true},sl*1000/r);
+  if(sl>0)stopT=setTimeout(function(){cmd("mute");muted=true},sl*1000/yrr);
 }
 function getId(u){var m=u.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/);return m?m[1]:(/^[\w-]{11}$/.test(u.trim())?u.trim():null)}
 function buildFrame(id){
@@ -292,6 +297,42 @@ document.addEventListener("keydown",function(e){
   if(e.repeat||e.target.tagName==="INPUT"||e.target.tagName==="SELECT")return;
   var i=KEYS.indexOf(e.key.toLowerCase());if(i>-1)hit(i);
 });
+
+/* Molette TUNE (demi-tons) */
+var tune=0;
+function rate(){return Math.pow(2,tune/12)}
+function ytRate(r){var L=[0.25,0.5,0.75,1,1.25,1.5,1.75,2],b=L[0];L.forEach(function(x){if(Math.abs(x-r)<Math.abs(b-r))b=x});return b}
+function setTune(v){
+  v=Math.max(-12,Math.min(12,v));
+  var n=Math.round(v);if(Math.abs(v-n)<0.15)v=n;
+  tune=Math.round(v*10)/10;
+  $("knob").firstElementChild.style.transform="rotate("+(tune/12*135)+"deg)";
+  $("kv").textContent="TUNE "+(tune>0?"+":"")+(tune%1===0?tune:tune.toFixed(1));
+  $("knob").setAttribute("aria-valuenow",tune);
+  if(buf&&src&&ph){
+    var now=ctx.currentTime,r=rate();
+    ph.off+=(now-ph.t0)*ph.r;ph.len-=(now-ph.t0)*ph.r;ph.t0=now;ph.r=r;
+    try{src.playbackRate.value=r}catch(x){}
+  }
+}
+var kn=$("knob"),kraw=0,ky=0,klast=0,kdrag=false;
+kn.addEventListener("pointerdown",function(e){
+  e.preventDefault();kn.focus();
+  try{kn.setPointerCapture(e.pointerId)}catch(x){}
+  kdrag=true;ky=e.clientY;kraw=tune;
+  var now=Date.now();if(now-klast<320){setTune(0);kraw=0}klast=now;
+});
+kn.addEventListener("pointermove",function(e){
+  if(!kdrag)return;
+  kraw=Math.max(-12,Math.min(12,kraw+(ky-e.clientY)/5));ky=e.clientY;setTune(kraw);
+});
+["pointerup","pointercancel"].forEach(function(n){kn.addEventListener(n,function(){kdrag=false})});
+kn.addEventListener("wheel",function(e){e.preventDefault();setTune(Math.round(tune)+(e.deltaY<0?1:-1))},{passive:false});
+kn.addEventListener("keydown",function(e){
+  if(e.key==="ArrowUp"||e.key==="ArrowRight"){e.preventDefault();setTune(Math.round(tune)+1)}
+  if(e.key==="ArrowDown"||e.key==="ArrowLeft"){e.preventDefault();setTune(Math.round(tune)-1)}
+});
+setTune(0);
 draw();
 </script>
 
