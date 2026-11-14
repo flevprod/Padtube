@@ -10,10 +10,11 @@
 html,body{max-width:100%;overflow-x:hidden}
 body{margin:0;background:radial-gradient(900px 500px at 50% -10%,#1a1030 0%,#06060b 60%);background-color:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
 main{max-width:520px;margin:0 auto;padding:16px}
-header{margin-bottom:14px}
-.by{margin-top:4px;font:italic 13px Georgia,"Times New Roman",serif;letter-spacing:.16em;color:var(--mute)}
-.by b{font-style:normal;font-weight:600;letter-spacing:.22em;color:#cfd3e6}
-h1{font-size:24px;letter-spacing:.16em;margin:0;font-weight:900}
+header{width:fit-content;margin-bottom:14px}
+.by{display:block;width:0;white-space:nowrap;margin-top:4px;line-height:1;font-family:"Avenir Next","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;font-weight:700;letter-spacing:.01em;color:#cfd3e6}
+#byt{display:inline-block}
+.by b{font-weight:800;color:var(--blue);text-shadow:0 0 8px rgba(61,139,255,.85)}
+h1{font-size:24px;letter-spacing:.16em;margin:0 -.16em 0 0;font-weight:900}
 h1 span{color:var(--blue);text-shadow:0 0 10px var(--blue),0 0 26px var(--blue)}
 .row{display:flex;gap:8px;margin-bottom:10px}
 input,select,button{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
@@ -58,7 +59,7 @@ summary{font-size:13px;color:var(--mute);letter-spacing:.08em;cursor:pointer}
 </head>
 <body>
 <main>
-<header><h1>PAD<span>TUBE</span></h1><div class="by">Created by <b>Flevprod</b></div></header>
+<header><h1>PAD<span>TUBE</span></h1><div class="by" id="by"><span id="byt">Created by <b>Flevprod</b></span></div></header>
 <div id="boot">⚠ Le code est incomplet ou n’a pas démarré : recopie le fichier en entier (il doit finir par &lt;/html&gt;).</div>
 <div class="row"><input id="url" placeholder="Colle un lien YouTube" inputmode="url"><button class="go" id="load">Charger</button></div>
 <div id="vid">Aucune vidéo chargée</div>
@@ -92,6 +93,19 @@ window.onerror=function(m,s,l){
   if(a)a.textContent=t;
   if(b){b.textContent=t;b.style.color="#ff6b6b"}
 };
+</script>
+
+<script>
+/* Signature : même largeur que le titre */
+function fitBy(){
+  try{
+    var h=document.querySelector("header"),t=document.getElementById("byt"),by=document.getElementById("by");
+    by.style.fontSize="20px";
+    var w=t.getBoundingClientRect().width,H=h.getBoundingClientRect().width;
+    if(w>0&&H>0)by.style.fontSize=(20*H/w).toFixed(2)+"px";
+  }catch(x){}
+}
+fitBy();window.addEventListener("load",fitBy);window.addEventListener("resize",fitBy);
 </script>
 
 <script>
